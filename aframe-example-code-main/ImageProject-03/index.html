@@ -1,15 +1,132 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <script src="https://aframe.io/releases/1.7.1/aframe.min.js"> </script>
+    <meta charset="utf-8">
+    <title>Run the Bases VR</title>
+    <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
+    <script>
+      // Face-camera component so text always faces the player
+      AFRAME.registerComponent('face-camera', {
+        schema: { target: { type: 'selector' } },
+        init: function () {
+          if (!this.data.target) {
+            this.data.target = this.el.sceneEl.camera && this.el.sceneEl.camera.el;
+          }
+          this._camWorld = new THREE.Vector3();
+        },
+        tick: function () {
+          const targetEl = this.data.target;
+          if (!targetEl || !targetEl.object3D) return;
+          targetEl.object3D.getWorldPosition(this._camWorld);
+          this.el.object3D.lookAt(this._camWorld);
+        }
+      });
+    </script>
   </head>
   <body>
     <a-scene>
-      <a-box position="-1 0.5 -3" rotation="0 45 0" color="#4CC3D9"></a-box>
-      <a-sphere position="0 1.25 -5" radius="1.25" color="#EF2D5E"></a-sphere>
-      <a-cylinder position="1 0.75 -3" radius="0.5" height="1.5" color="#FFC65D"></a-cylinder>
-      <a-plane position="0 0 -4" rotation="-90 0 0" width="4" height="4" color="#7BC8A4"></a-plane>
-      <a-sky color="#ECECEC"></a-sky>
+      <!-- =========================
+           Assets
+           ========================= -->
+      <a-assets>
+        <!-- Background sky -->
+        <img id="stadiumSky" src="assets/equirectangularField.jpg">
+
+        <!-- Grass texture -->
+        <img id="grassTex" src="assets/Grasstexture.jpg">
+
+        <!-- Base OBJ model -->
+        <a-asset-item id="baseObj" src="assets/Home Plate/model.obj"></a-asset-item>
+        <!-- Optional material file -->
+        <a-asset-item id="baseMtl" src="blank"></a-asset-item>
+
+        <!-- Pitcher’s mound model (blank placeholder if you want a custom model) -->
+        <a-asset-item id="moundModel" src="blank"></a-asset-item>
+
+        <!-- Extra prop (bat, glove, scoreboard, etc.) -->
+        <a-asset-item id="extraModel" src="blank"></a-asset-item>
+
+        <!-- Baseball model (blank placeholder if you want a proper 3D baseball) -->
+        <a-asset-item id="ballModel" src="assets/Baseball/baseball.obj"></a-asset-item>
+      </a-assets>
+
+      <!-- =========================
+           Sky
+           ========================= -->
+      <a-sky src="#stadiumSky" radius="40"></a-sky>
+
+      <!-- =========================
+           Camera wrapper: start in corner behind home plate, facing inward
+           ========================= -->
+      <a-entity position="16 1.6 -16" rotation="0 135 0">
+        <a-entity id="player" camera wasd-controls look-controls></a-entity>
+      </a-entity>
+
+      <!-- =========================
+           Field
+           ========================= -->
+      <a-plane rotation="-90 0 0" width="50" height="50"
+               material="src: #grassTex; repeat: 20 20;"></a-plane>
+
+      <!-- =========================
+           Bases (spread out, doubled size)
+           ========================= -->
+      <a-entity id="first" obj-model="obj: #baseObj" position="10 0 10" scale="2 2 2"></a-entity>
+      <a-entity id="second" obj-model="obj: #baseObj" position="-10 0 10" scale="2 2 2"></a-entity>
+      <a-entity id="third" obj-model="obj: #baseObj" position="-10 0 -10" scale="2 2 2"></a-entity>
+      <a-entity id="home" obj-model="obj: #baseObj" position="10 0 -10" scale="2 2 2" rotation="0 -45 0"></a-entity>
+
+      <!-- =========================
+           Baseball mound built from primitives
+           ========================= -->
+      <a-cylinder position="0 0.1 0" radius="2" height="0.2" color="#8B4513"></a-cylinder>
+      <a-box position="0 0.2 0" depth="0.4" height="0.05" width="2"
+             color="white" rotation="0 135 0"></a-box>
+
+      <!-- =========================
+           Baseball on the infield
+           ========================= -->
+      <!-- Simple primitive ball -->
+      <a-sphere position="2 0.2 0" radius="0.2" color="white"></a-sphere>
+      <!-- If you want a textured/model baseball, replace with: -->
+      <!-- <a-entity gltf-model="#ballModel" position="2 0.2 0" scale="0.2 0.2 0.2"></a-entity> -->
+
+      <!-- =========================
+           HUD Text
+           ========================= -->
+      <a-text id="hud" value="Run the bases!" position="0 2.5 0"
+              align="center" color="yellow" scale="3 3 3"
+              material="side: double" face-camera="target: #player"></a-text>
     </a-scene>
+
+    <!-- =========================
+         Collision Logic
+         ========================= -->
+    <script>
+      const player = document.querySelector('#player');
+      const hud = document.querySelector('#hud');
+      const bases = ['first','second','third','home'];
+
+      function checkCollision() {
+        const pos = player.object3D.position;
+        bases.forEach(id => {
+          const e = document.querySelector('#' + id);
+          const p = e.object3D.position;
+          if (pos.distanceTo(p) < 2.5) {
+            if (id === 'home') {
+              hud.setAttribute('value','Home Run!');
+            } else if (id === 'first') {
+              hud.setAttribute('value','Single!');
+            } else if (id === 'second') {
+              hud.setAttribute('value','Double!');
+            } else if (id === 'third') {
+              hud.setAttribute('value','Triple!');
+            }
+          }
+        });
+      }
+
+      setInterval(checkCollision, 300);
+    </script>
   </body>
 </html>
